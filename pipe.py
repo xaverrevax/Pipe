@@ -354,6 +354,7 @@ import socket
 import itertools
 from functools import reduce
 import sys
+import dpath.util
 
 try:
     import builtins
@@ -373,7 +374,8 @@ __all__ = [
     'tee', 'add', 'first', 'chain', 'select', 'where', 'take_while',
     'skip_while', 'aggregate', 'groupby', 'sort', 'reverse',
     'chain_with', 'islice', 'izip', 'passed', 'index', 'strip', 
-    'lstrip', 'rstrip', 'run_with', 't', 'to_type',
+    'lstrip', 'rstrip', 'run_with', 't', 'to_type','find_where',
+    'get_path_for_table_and_element'
 ]
 
 class Pipe:
@@ -557,6 +559,52 @@ def select(iterable, selector):
 @Pipe
 def where(iterable, predicate):
     return (x for x in iterable if (predicate(x)))
+
+
+@Pipe
+def find_where(iterable, value):
+    #attribution_prod_expected_results
+    res = dpath.util.search(iterable,"**/"+value,dirs=True)
+    return res
+
+def find_in_d(input,cmpstr, path):
+    if isinstance(input, dict):
+        return dict((find_in_d(key,cmpstr,path), find_in_d(value,cmpstr,path)) for key, value in input.iteritems())
+    elif isinstance(input, list):
+        return [find_in_d(element,cmpstr,path) for element in input]
+    elif input == cmpstr:
+        path.append("#")
+        return False
+    else:
+        #print "input: ", input
+        path.append(input)
+ 
+
+def convert_to_path(path):
+    output = []
+    tmp = []
+    for item in path:
+        if item != '#':
+            #print "item: ", item
+            tmp.append(item)
+        else:
+            #print "tmp: ", tmp
+            output.append("/".join(tmp))
+            tmp = []
+    return output
+
+def get_path(result,data_set_name):
+    path = []
+    find_in_d(result,data_set_name,path)
+    #print "path: ", path
+    joined_path = convert_to_path(path)
+    return joined_path
+
+def get_path_for_table_and_element(my_ordered_dict,table,element):
+    out = my_ordered_dict | find_where(table) | find_where(element)
+    print out
+    path = get_path(out,'prod-resources-hidpi-20')
+    return path
 
 @Pipe
 def take_while(iterable, predicate):
